@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TITAN V15.0 - Kusursuz Master Sürümü</title>
+    <style>
+        /* --- TEMEL VE HATA GİDERİCİ STİLLER --- */
+        :root {
+            --red: #ff3b30; --dark: #1c1c1e; --gray: #f2f2f7; --white: #ffffff; --blue: #007aff; --yellow: #ffcc00; --green: #34c759;
+            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: var(--font-family); }
+        body { margin: 0; background: var(--gray); color: #000; overflow-x: hidden; }
+        .app { max-width: 500px; margin: 0 auto; background: var(--white); min-height: 100vh; display: flex; flex-direction: column; position: relative; box-shadow: 0 0 30px rgba(0,0,0,0.1); }
+        .hidden { display: none !important; }
+
+        /* KART STİLLERİ */
+        .content { padding: 20px; flex: 1; padding-bottom: 80px; }
+        .card { background: #f9f9f9; padding: 15px; border-radius: 12px; border-left: 5px solid var(--blue); margin-bottom: 10px; }
+        .card.alert { background: #fff5f5; border-left-color: var(--red); }
+        .card.secure { background: #f0f0ff; border-left-color: var(--blue); }
+        .card.ekg { background: #111; border-left: none; padding: 0; overflow: hidden; } /* YENİ: EKG Stili */
+        .card.bmi { background: #fffbe6; border-left-color: var(--yellow); } /* YENİ: BMI Stili */
+
+
+        /* NFC MODU */
+        body.nfc-mode .app { background: var(--dark); color: var(--white); }
+        body.nfc-mode .header { background: var(--red) !important; color: white !important; border-radius: 0; padding: 20px; }
+        body.nfc-mode .content, body.nfc-mode .card, body.nfc-mode .footer { background: var(--dark) !important; color: white !important; }
+        body.nfc-mode .card { border-left-color: var(--red) !important; }
+        body.nfc-mode .lbl { color: #ccc !important; }
+        body.nfc-mode .user-name { font-size: 30px !important; }
+        body.nfc-mode .card.alert { background: #330000 !important; border-left-color: var(--red) !important; }
+        body.nfc-mode .risk-badge { font-size: 16px; padding: 8px 20px; }
+        body.nfc-mode .card.ekg { background: #000; } /* NFC'de EKG Koyu Arka Plan */
+
+        /* EKG Simülasyon Stili (YENİ) */
+        .ekg-line { display: block; height: 60px; background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,10 L10,10 L12,18 L14,2 L16,10 L25,10" stroke="%2334c759" fill="none" stroke-width="0.3"/></svg>') repeat-x; background-size: 25% 100%; }
+        .ekg-line.arrhythmia { background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20" preserveAspectRatio="none"><path d="M0,10 L5,10 L8,15 L10,5 L12,10 L15,10 L17,13 L19,7 L21,10 L30,10" stroke="%23ff3b30" fill="none" stroke-width="0.3"/></svg>') repeat-x; background-size: 30% 100%; animation: ekg-move 1s linear infinite; }
+        .ekg-title { padding: 5px 15px; font-size: 10px; color: #999; }
+        @keyframes ekg-move { from { background-position: 0% 0; } to { background-position: 100% 0; } }
+
+        /* ZAMANLAYICI STİLİ (YENİ) */
+        #timer-display { font-size: 12px; font-weight: bold; color: var(--blue); position: absolute; top: 20px; left: 20px; }
+        body.nfc-mode #timer-display { color: var(--yellow); }
+
+        /* YÖNETİCİ EKRANI STİLLERİ (Hata Giderme) */
+        .login-screen { padding: 40px 20px; text-align: center; }
+        .input-lg { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
+        .form-group { margin-bottom: 15px; }
+        .chk-list label { display: block; margin-bottom: 5px; font-size: 14px; }
+        .fam-input-group { display: flex; gap: 10px; margin-bottom: 15px; }
+        .fam-input-group input { flex: 1; }
+        
+        /* AİLE/DOKTOR LİSTESİ STİLLERİ (Hata Giderme) */
+        .fam-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .fam-info { flex-grow: 1; }
+        .fam-name { font-weight: 600; }
+        .fam-actions a { display: inline-block; padding: 8px; border-radius: 50%; margin-left: 5px; text-decoration: none; font-size: 16px; }
+        .fam-actions a:nth-child(1) { background: #eee; color: var(--blue); }
+    </style>
+</head>
+<body>
+
+<div id="scr-view" class="app">
+    <div id="timer-display">⏱️ Müdahale Süresi: <span id="timer-seconds">00:00</span></div>
+    <div class="header">
+        <div id="settings-icon" onclick="Router.go('login')">⚙️</div>
+        <img id="v-img" src="" class="avatar">
+        <h1 id="v-name" class="user-name">...</h1>
+        <div id="v-disease" class="risk-badge">...</div>
+    </div>
+
+    <div class="content">
+        <div class="triage-box">
+            <div class="triage-info">
+                <span id="triage-lbl">ACİL TRİAJ SKORU</span><br>
+                <small id="triage-comment">Önceliklendirme gerekli</small>
+            </div>
+            <div id="triage-score" class="triage-score">0</div>
+        </div>
+        
+        <div id="quick-actions-wrap" class="quick-actions">
+            <button onclick="Utils.toggleSiren()" class="q-btn btn-siren">🚨 SİREN</button>
+            <button onclick="Utils.sendLocation()" class="q-btn btn-loc">📍 KONUM</button>
+            <button onclick="Utils.toggleLanguage()" class="q-btn btn-tr">🌐 ÇEVİRİ</button>
+            <button onclick="Utils.toggleAccessibility()" class="q-btn btn-a11y">♿ ERİŞİM</button>
+        </div>
+
+        <button id="ai-btn-wrap" onclick="AI.start()" class="ai-btn">
+            🗣️ SESLİ ACİL ASİSTAN BAŞLAT
+        </button>
+
+        <div id="v-ekg-card" class="card ekg">
+            <div class="ekg-title" id="ekg-title">EKG Simülasyonu: Normal Sinüs Ritmi</div>
+            <span id="ekg-line" class="ekg-line"></span>
+        </div>
+
+        <div id="v-bmi-card" class="card bmi" style="display:none;">
+            <span class="lbl" id="lbl-bmi">⚖️ VÜCUT KİTLE ENDEKSİ (BMI)</span>
+            <div id="v-bmi-val" class="val" style="color:var(--dark);"></div>
+        </div>
+
+        <div id="v-interaction-card" class="card alert" style="display:none;">
+            <span class="lbl">🚨 İLAÇ ETKİLEŞİM RİSKİ</span>
+            <div id="v-interaction-msg" class="val" style="color:var(--dark);"></div>
+        </div>
+
+        <div id="v-allergies-card" class="card alert">
+            <span class="lbl" id="lbl-allergies">⚠️ KONTROL EDİLMESİ GEREKEN ALERJİLER</span>
+            <div id="v-allergies" class="tags"></div>
+        </div>
+
+        <div id="v-notes-card" class="card" style="border-left-color: var(--yellow);">
+            <span class="lbl" id="lbl-notes">ÖNEMLİ NOTLAR / TIBBİ UYARILAR</span>
+            <div id="v-notes" class="val">...</div>
+        </div>
+
+        <div id="v-blood-card" class="card blood">
+            <span class="lbl" id="lbl-blood-title">KAN GRUBU & UYUMLULUK KONTROLÜ</span>
+            <div id="v-blood-group" class="val" style="font-size: 24px; font-weight: 900; color: var(--red);">...</div>
+            <div id="v-blood-compat" class="blood-grid"></div>
+        </div>
+        
+        <div id="v-meds-card" class="card">
+            <span class="lbl" id="lbl-meds">DÜZENLİ İLAÇLAR</span>
+            <div id="v-meds" class="val">...</div>
+        </div>
+
+        <div id="v-doctor-card" class="card doctor hidden">
+            <span class="lbl" id="lbl-doctor">HASTANIN DOKTORU</span>
+            <div class="val" id="v-doctor-info">...</div>
+        </div>
+        
+        <div id="v-family-card" class="hidden">
+            <span class="lbl" id="lbl-family" style="margin-top: 15px;">AİLE İLETİŞİM (Ara/SMS)</span>
+            <div id="v-family" class="fam-list"></div>
+        </div>
+        
+        <button id="show-sensitive-btn" onclick="Security.checkBiometric()" class="ai-btn" style="background: var(--blue); margin-top: 10px;">
+            🔒 DOKTOR VE AİLE BİLGİLERİNİ GÖRÜNTÜLE
+        </button>
+    </div>
+    
+    <div id="sticky-sos-wrap" class="sticky-sos">
+        <a href="tel:112" class="sos-btn-float">📞 TEK DOKUNUŞLA 112 ARA</a>
+    </div>
+
+    <div id="footer" class="footer">
+        Titan V15.0 | Son Veri Güncellemesi: <span id="v-last-update">...</span>
+    </div>
+</div>
+
+<div id="scr-login" class="app hidden">
+    <div class="login-screen">
+        <h2>Yönetici Girişi</h2>
+        <p>Verileri düzenlemek için şifre:</p>
+        <input type="password" id="pass-in" class="input-lg" placeholder="******">
+        <button onclick="Admin.check()" class="ai-btn" style="background: var(--dark); margin-bottom:10px;">GİRİŞ</button>
+        <button onclick="Router.go('view')" class="ai-btn" style="background: #ccc; color:#333;">İPTAL</button>
+    </div>
+</div>
+
+<div id="scr-admin" class="app hidden">
+    <div class="header" style="padding: 20px; border-radius:0;"><h2>⚙️ Veri Düzenle</h2></div>
+    <div class="content" style="overflow-y: auto;">
+        <div class="form-group"><span class="lbl">AD SOYAD</span><input id="i-name" class="input-lg"></div>
+        <div class="form-group"><span class="lbl">FOTO URL</span><input id="i-img" class="input-lg" placeholder="https://..."></div>
+        
+        <div class="fam-input-group">
+             <span class="lbl" style="flex:1;">BOY (cm)</span><span class="lbl" style="flex:1;">KİLO (kg)</span>
+        </div>
+        <div class="fam-input-group">
+            <input id="i-height" class="input-lg" placeholder="175" type="number">
+            <input id="i-weight" class="input-lg" placeholder="70" type="number">
+        </div>
+        <div class="form-group"><span class="lbl">KAN GRUBU (Örn: A Rh+, 0 Rh-)</span><input id="i-blood" class="input-lg" placeholder="0 Rh+"></div>
+        
+        <div class="form-group"><span class="lbl">ANA TANI</span><select id="i-disease" class="input-lg"></select></div>
+
+        <div class="form-group" style="background:#fff5f5; padding:10px; border:1px solid #ffccd5; border-radius:10px;">
+            <span class="lbl" style="color:red">ALERJİLER</span>
+            <div id="i-chk" class="chk-list"></div>
+            <input id="i-other-a" class="input-lg" placeholder="Diğer..." style="margin-top:10px;">
+        </div>
+
+        <div class="form-group"><span class="lbl">DÜZENLİ İLAÇLAR</span><textarea id="i-meds" class="input-lg" rows="2"></textarea></div>
+        
+        <div class="form-group"><span class="lbl">ACİL DURUM NOTLARI (Kritik!)</span><textarea id="i-notes" class="input-lg" rows="2"></textarea></div>
+
+        <span class="lbl">DOKTOR BİLGİLERİ</span>
+        <div class="fam-input-group">
+            <input id="i-doc-n" placeholder="Dr. Adı" class="input-lg">
+            <input id="i-doc-t" placeholder="Dr. Tel" type="tel" class="input-lg">
+        </div>
+
+        <span class="lbl">AİLE BİLGİLERİ</span>
+        <div class="fam-input-group">
+            <input id="i-dad-n" placeholder="Baba Adı" class="input-lg">
+            <input id="i-dad-t" placeholder="Tel" type="tel" class="input-lg">
+        </div>
+        <div class="fam-input-group">
+            <input id="i-mom-n" placeholder="Anne Adı" class="input-lg">
+            <input id="i-mom-t" placeholder="Tel" type="tel" class="input-lg">
+        </div>
+        <div class="fam-input-group">
+            <input id="i-bro-n" placeholder="Kardeş Adı" class="input-lg">
+            <input id="i-bro-t" placeholder="Tel" type="tel" class="input-lg">
+        </div>
+
+
+        <button onclick="Admin.save()" class="ai-btn" style="background: var(--green);">KAYDET</button>
+    </div>
+</div>
+
+<div id="scr-ai" class="app hidden" style="height:100vh;">
+    <div class="chat-head" style="background:var(--dark); color:white; padding:15px; display:flex; justify-content:space-between; align-items:center;">
+        <span>🤖 Acil Asistan</span>
+        <button onclick="Router.go('view')" style="background:rgba(255,255,255,0.2); border:none; color:white; padding:5px 10px; border-radius:5px;">Kapat</button>
+    </div>
+    <div id="chat-box" class="chat-body" style="padding: 10px; overflow-y: auto; flex-grow: 1;"></div>
+    <div id="chat-opts" class="opts" style="padding: 10px; border-top: 1px solid #eee; display:flex; flex-wrap:wrap; gap:5px;"></div>
+</div>
+
+<div id="scr-security" class="security-overlay hidden" onclick="Security.checkResult(false)">
+    <div class="fingerprint-icon">✋</div>
+    <h2>BİOMETRİK GÜVENLİK KONTROLÜ</h2>
+    <p>Hassas verilere erişmek için parmak izi/Face ID onayı gerekiyor.</p>
+    <button onclick="Security.checkResult(true)" class="ai-btn" style="background: var(--green); margin-top: 30px; width: 200px;">
+        ✅ ONAYLA (Simülasyon)
+    </button>
+    <small style="margin-top: 10px;">Erişimi reddetmek için ekrana dokunun.</small>
+</div>
+
+
+<script>
+/* --- 1. VERİ YAPISI & RİSK KODLARI --- */
+const DB = [
+    {id:"EPIL", cat:"NEURO", name:"Epilepsi (Sara)", risk:"RED", riskVal: 80, ekg: "arrhythmia"},
+    {id:"DIY1", cat:"META", name:"Tip 1 Diyabet", risk:"RED", riskVal: 75, ekg: "normal"},
+    {id:"DIY2", cat:"META", name:"Tip 2 Diyabet", risk:"YELLOW", riskVal: 50, ekg: "normal"},
+    {id:"KAH", cat:"HEART", name:"Kalp Hastası", risk:"RED", riskVal: 90, ekg: "arrhythmia"},
+    {id:"ASTIM", cat:"RESP", name:"Astım / KOAH", risk:"YELLOW", riskVal: 60, ekg: "normal"},
+    {id:"ARI", cat:"ALLERGY", name:"Alerji: Arı Sokması", risk:"RED", riskVal: 70, ekg: "normal"},
+    {id:"PENI", cat:"ALLERGY", name:"Alerji: Penisilin", risk:"YELLOW", riskVal: 65, ekg: "normal"},
+    {id:"GENEL", cat:"GENEL", name:"Diğer / Bilinmiyor", risk:"GREEN", riskVal: 30, ekg: "normal"}
+];
+const AL_LIST = ["Penisilin", "Lateks", "Arı", "Fıstık", "Toz", "Süt", "Yumurta"];
+
+const varR = '#ff3b30'; // Kırmızı
+const varY = '#ffcc00'; // Sarı
+const varG = '#34c759'; // Yeşil
+
+let timerInterval;
+
+function getBloodCompatibility(bloodType) {
+    const b = (bloodType || "-").toUpperCase().replace(/\s/g, '');
+    const bT = b.replace(/RH[+-]/, '');
+    const rh = b.includes('+') ? '+' : (b.includes('-') ? '-' : '?');
+    
+    let canReceive = [];
+    if (bT === 'A') { canReceive = ['A', '0']; }
+    else if (bT === 'B') { canReceive = ['B', '0']; }
+    else if (bT === 'AB') { canReceive = ['A', 'B', 'AB', '0']; }
+    else if (bT === '0') { canReceive = ['0']; }
+    
+    let receiveList = [];
+    if (rh === '+') {
+        receiveList = canReceive.map(t => `${t}+, ${t}-`).join(', ').split(', ').filter(x => x.trim() !== '');
+    } else if (rh === '-') {
+        receiveList = canReceive.map(t => `${t}-`).join(', ').split(', ').filter(x => x.trim() !== '');
+    } else {
+        receiveList = ['Bilinmiyor'];
+    }
+    
+    const universalDonor = (bT === '0' && rh === '-') ? "Tüm Gruplardan" : receiveList.join(', ');
+    const universalReceiver = (bT === 'AB' && rh === '+') ? "Tüm Gruplara" : "Bilinmiyor";
+
+    return {
+        receive: universalDonor,
+        donate: (bT === '0' && rh === '-') ? "Tüm Gruplara" : universalReceiver
+    };
+}
+
+
+/* --- 2. UYGULAMA ÇEKİRDEĞİ --- */
+const App = {
+    data: {},
+    language: 'tr',
+    init: function() {
+        try {
+            const raw = localStorage.getItem('TitanV15');
+            this.data = raw ? JSON.parse(raw) : this.def();
+        } catch(e) { this.data = this.def(); }
+        
+        this.render();
+        this.fillAdmin();
+        this.checkNFCMode();
+        Timer.start(); // Timer'ı başlat
+    },
+    def: function() {
+        return {
+            name: "Ayşe Yılmaz", img: "https://ui-avatars.com/api/?name=Ayşe+Yılmaz&background=4296F7&color=fff",
+            height: 170, weight: 65, blood: "A Rh+", disease: "KAH", meds: "Aspirin, Coraspin", allergies: ["Penisilin"], otherA: "Yer fıstığı", notes: "Son 1 haftadır göğüs ağrısı var. Acil durumda doktoru aranmalı.",
+            doctor: {n:"Ahmet Çelik", t:"05321112233"}, lastUpdate: "Hiç",
+            fam: { dad:{n:"Mehmet Yılmaz",t:"05445556677"}, mom:{n:"Zeynep Yılmaz",t:"05445556678"}, bro:{n:"",t:""} }
+        };
+    },
+    render: function() {
+        const d = this.data;
+        const dis = DB.find(x => x.id === d.disease) || DB[0];
+        
+        document.getElementById('v-name').innerText = d.name;
+        document.getElementById('v-img').src = d.img || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.name.substring(0,2))}&background=random&color=fff`;
+        document.getElementById('v-meds').innerText = d.meds || (this.language === 'tr' ? "Yok" : "None");
+        document.getElementById('v-last-update').innerText = d.lastUpdate;
+        
+        // Risk & Hastalık
+        const dBox = document.getElementById('v-disease');
+        dBox.innerText = `${dis.name} (${dis.risk})`;
+        dBox.className = `risk-badge risk-${dis.risk.toLowerCase()}`;
+
+        // Alerjiler
+        const tBox = document.getElementById('v-allergies');
+        const allA = [...d.allergies];
+        if(d.otherA) allA.push(d.otherA);
+        tBox.innerHTML = allA.length ? allA.map(x => `<span class="tag">${x}</span>`).join('') : `<small>${this.language === 'tr' ? 'Alerji Yok' : 'No Allergies'}</small>`;
+        document.getElementById('v-allergies-card').style.display = allA.length ? 'block' : 'none';
+
+        // Kritik Notlar
+        const nBox = document.getElementById('v-notes');
+        const nCard = document.getElementById('v-notes-card');
+        nBox.innerText = d.notes || (this.language === 'tr' ? "Kritik Acil Notu Yok." : "No Critical Emergency Notes.");
+        nCard.style.display = (d.notes && d.notes.trim() !== "" && d.notes.toLowerCase() !== "yok") ? 'block' : 'none';
+
+        // Kan Grubu ve Uyum
+        document.getElementById('v-blood-group').innerText = d.blood || (this.language === 'tr' ? 'Bilinmiyor' : 'Unknown');
+        const compat = getBloodCompatibility(d.blood);
+        document.getElementById('v-blood-compat').innerHTML = `
+            <div><b>${this.language === 'tr' ? 'Alabilir' : 'Receive'}:</b> <span>${compat.receive}</span></div>
+            <div><b>${this.language === 'tr' ? 'Verebilir' : 'Donate'}:</b> <span>${compat.donate}</span></div>`;
+
+        // Doktor Bilgisi (Gizli Kart)
+        const docBox = document.getElementById('v-doctor-info');
+        if(d.doctor.t) {
+            docBox.innerHTML = `Dr. ${d.doctor.n || (this.language === 'tr' ? "Bilinmiyor" : "Unknown")} - <a href="tel:${d.doctor.t}" style="color: var(--green); text-decoration: none;">${d.doctor.t}</a>`;
+        }
+        
+        // EKG Simülasyonu (YENİ)
+        const ekgEl = document.getElementById('ekg-line');
+        ekgEl.className = `ekg-line ${dis.ekg}`;
+        const ekgTitleEl = document.getElementById('ekg-title');
+        ekgTitleEl.innerText = dis.ekg === 'arrhythmia' ? (this.language === 'tr' ? 'EKG Simülasyonu: Aritmi (Düzensiz Ritme Dikkat!)' : 'EKG Simulation: Arrhythmia (Watch for Irregular Rhythm!)') : (this.language === 'tr' ? 'EKG Simülasyonu: Normal Sinüs Ritmi' : 'EKG Simulation: Normal Sinus Rhythm');
+        
+        // BMI Hesaplama (YENİ)
+        this.calculateBMI();
+        
+        // İlaç Etkileşim Kontrolü
+        this.checkInteractions();
+        
+        // Triage Skoru Hesapla
+        this.calculateTriage(dis, allA);
+    },
+    calculateBMI: function() {
+        const h = parseFloat(this.data.height);
+        const w = parseFloat(this.data.weight);
+        const bmiCard = document.getElementById('v-bmi-card');
+        const bmiValEl = document.getElementById('v-bmi-val');
+        
+        if(h > 0 && w > 0) {
+            const bmi = w / ((h / 100) ** 2);
+            let risk = "";
+            let color = varG;
+
+            if (bmi < 18.5) { risk = this.language === 'tr' ? "Zayıf" : "Underweight"; color = varY; }
+            else if (bmi >= 25) { risk = this.language === 'tr' ? "Fazla Kilolu" : "Overweight"
